@@ -26,8 +26,15 @@ client.on('connect', function handleConnection(connection: ws.connection) {
 
     function sendNumber() {
         if (connection.connected) {
-            var number = Math.round(Math.random() * 0xFFFFFF);
-            connection.sendUTF(number.toString());
+            const request = {
+                objectName: 'taskObject',
+                procedure: {
+                    method: 'operation',
+                    args: [1, 2],
+                    attribute: 'name'
+                }
+            }
+            connection.sendUTF(JSON.stringify(request));
             setTimeout(sendNumber, 1000);
         }
     }

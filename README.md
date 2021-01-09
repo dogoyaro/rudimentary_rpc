@@ -11,7 +11,13 @@ This solution:
 them (e.g. websockets, ​window.postMessage()​ etc) is entirely up to you.
 
 Context 1: A NodeJs process hosting a websocket server
-Context 2: A browser script.
+Context 2: A NodeJs process hosting a websocket client
+
+
+
+
+
+
 
 
 
