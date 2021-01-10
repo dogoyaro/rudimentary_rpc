@@ -20,6 +20,11 @@ client.on('connect', function handleConnection(connection: ws.connection) {
     connection.on('message', function handleMessage(message: ws.IMessage) {
         if (message.type === 'utf8') {
             console.log('Received: ' + message.utf8Data);
+            connection.sendUTF(JSON.stringify({
+                objectName: 'taskObject',
+                type: 'attribute',
+                attribute: 'name',
+            }));
         }
     });
     sendNumber()
@@ -28,14 +33,12 @@ client.on('connect', function handleConnection(connection: ws.connection) {
         if (connection.connected) {
             const request = {
                 objectName: 'taskObject',
-                procedure: {
-                    method: 'operation',
-                    args: [1, 2],
-                    attribute: 'name'
-                }
+                init_fetch: true,
+                // type: 'attribute',
+                // attribute: 'name'
             }
             connection.sendUTF(JSON.stringify(request));
-            setTimeout(sendNumber, 1000);
+            // setTimeout(sendNumber, 1000);
         }
     }
 });

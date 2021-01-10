@@ -1,10 +1,11 @@
+import { Schema } from '../contextA';
+
+
 class Provider {
     _registeredObjects: any;
-    _schema: object;
 
     constructor() {
         this._registeredObjects = {};
-        this._schema = {};
     }
 
     /**
@@ -12,7 +13,7 @@ class Provider {
      * @param objectName 
      * @param properties 
      */
-    register(objectName: string, properties: object) {
+    register(objectName: string, properties: { data: object, schema: Schema}) {
         this._registeredObjects[objectName] = properties;
     }
 
@@ -22,18 +23,6 @@ class Provider {
      */
     getObject(objectName: string): any {
         return this._registeredObjects[objectName];
-    }
-
-    /**
-     * 
-     * @param request 
-     */
-    sanitizeRequest(request: string): boolean {
-        return true;
-    }
-
-    get schema() {
-        return this._schema;
     }
 }
 
