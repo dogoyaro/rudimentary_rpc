@@ -22,6 +22,7 @@ class ExecutionContext {
             parsedRequest = this.parseRequest(request) as Request;
         } catch (error) {
             return {
+                type: 'error',
                 error: true,
                 message: 'bad request',
             }
@@ -33,6 +34,7 @@ class ExecutionContext {
 
             this.context[objectName] = { ...this.provider.getObject(objectName) }
             return {
+                type: 'schema',
                 schema,
             }
 
@@ -40,6 +42,7 @@ class ExecutionContext {
 
         const result = this.executeRPCProcedure(parsedRequest);
         return {
+            type: 'property',
             result,
         }
     }
@@ -69,6 +72,7 @@ class ExecutionContext {
             return result;
         } catch (error) {
             return {
+                type: 'error',
                 error: true,
                 message: 'Error handling Request',
             }
@@ -94,6 +98,7 @@ const requestHandlers: { [type: string]: (request: Request, obj: { data: Data, s
 const responseHandlers: { [key: string]: (value: any) => Response } = {
     default: function defaultResponse(value: any) {
         return {
+            type: 'property',
             result: value
         }
     }
@@ -118,15 +123,18 @@ interface AttributeRequest {
 }
 
 interface ErrorRPCResponse {
+    type: 'error'
     error: true
     message: string
 }
 
 interface RPCResponse {
+    type: string
     result: any
 }
 
 interface SchemaResponse {
+    type: string
     schema: any
 }
 

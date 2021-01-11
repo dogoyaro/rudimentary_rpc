@@ -13,7 +13,7 @@ const taskObject: { name: string, operation: (a: number, b: number) => number, o
 };
 
 const taskObjectSchema: Schema = {
-    service: taskObject,
+    service: 'taskObject',
     methods: {
         operation: {
             params: {
@@ -48,7 +48,7 @@ const taskObjectSchema: Schema = {
 };
 
 export interface Schema {
-    service: object
+    service: string
     methods: Methods
     attributes: Attribute
 }

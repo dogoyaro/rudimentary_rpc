@@ -1,7 +1,9 @@
 #! /usr/bin/env node
 import ws from 'websocket';
-const WebSocketClient = ws.client;
+import Consumer from './utils/Consumer';
 
+
+const WebSocketClient = ws.client;
 const client = new WebSocketClient();
 client.on('connectFailed', function handleError(error) {
     console.log('Connect Error: ' + error.toString());
@@ -17,27 +19,21 @@ client.on('connect', function handleConnection(connection: ws.connection) {
         console.log('rpc-protocol connection closed');
     });
 
-    connection.on('message', function handleMessage(message: ws.IMessage) {
-        if (message.type === 'utf8') {
-            console.log('Received: ' + message.utf8Data);
-            connection.sendUTF(JSON.stringify({
-                objectName: 'taskObject',
-                type: 'attribute',
-                attribute: 'name',
-            }));
-        }
-    });
-    sendNumber()
 
-    function sendNumber() {
+    initializeConsumer()
+
+    async function initializeConsumer() {
         if (connection.connected) {
-            const request = {
-                objectName: 'taskObject',
-                init_fetch: true,
-                // type: 'attribute',
-                // attribute: 'name'
-            }
-            connection.sendUTF(JSON.stringify(request));
+            const consumer = new Consumer(connection);
+            const result = await consumer.getRemoteObject('taskObject');
+            console.log('Consumer Result: ', await (result as any).name);
+            // const request = {
+            //     objectName: 'taskObject',
+            //     init_fetch: true,
+            //     // type: 'attribute',
+            //     // attribute: 'name'
+            // }
+            // connection.sendUTF(JSON.stringify(request));
             // setTimeout(sendNumber, 1000);
         }
     }
@@ -45,3 +41,15 @@ client.on('connect', function handleConnection(connection: ws.connection) {
 
 
 client.connect('ws://localhost:8080/', 'rpc-protocol');
+
+
+    // connection.on('message', function handleMessage(message: ws.IMessage) {
+    //     if (message.type === 'utf8') {
+    //         console.log('Received: ' + message.utf8Data);
+    //         connection.sendUTF(JSON.stringify({
+    //             objectName: 'taskObject',
+    //             type: 'attribute',
+    //             attribute: 'name',
+    //         }));
+    //     }
+    // });
