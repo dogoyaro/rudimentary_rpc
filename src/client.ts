@@ -27,29 +27,9 @@ client.on('connect', function handleConnection(connection: ws.connection) {
             const consumer = new Consumer(connection);
             const result = await consumer.getRemoteObject('taskObject');
             console.log('Consumer Result: ', await (result as any).name);
-            // const request = {
-            //     objectName: 'taskObject',
-            //     init_fetch: true,
-            //     // type: 'attribute',
-            //     // attribute: 'name'
-            // }
-            // connection.sendUTF(JSON.stringify(request));
-            // setTimeout(sendNumber, 1000);
         }
     }
 });
 
 
 client.connect('ws://localhost:8080/', 'rpc-protocol');
-
-
-    // connection.on('message', function handleMessage(message: ws.IMessage) {
-    //     if (message.type === 'utf8') {
-    //         console.log('Received: ' + message.utf8Data);
-    //         connection.sendUTF(JSON.stringify({
-    //             objectName: 'taskObject',
-    //             type: 'attribute',
-    //             attribute: 'name',
-    //         }));
-    //     }
-    // });
