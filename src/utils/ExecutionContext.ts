@@ -1,14 +1,15 @@
 import Provider from './Provider';
 import { Schema, Attribute } from '../contextA';
+import { v4 as uuidv4 } from 'uuid';
 
 class ExecutionContext {
     provider: Provider
     request: string
-    context: { [key: string]: { data: Data, schema: Schema } }
+    context: { [key: string]: ContextObject }
 
     constructor(provider: Provider) {
         this.provider = provider;
-        this.context = {};
+        this.context = { };
         this.request = '';
     }
 
@@ -22,18 +23,22 @@ class ExecutionContext {
             parsedRequest = this.parseRequest(request) as Request;
         } catch (error) {
             return {
+                _id: uuidv4(),
+
                 type: 'error',
                 error: true,
                 message: 'bad request',
             }
         }
+        const { objectName = '' } = parsedRequest as Request;
+
 
         if (parsedRequest.init_fetch) {
-            const { objectName = '' } = parsedRequest as Request;
             const { schema } = this.provider.getObject(objectName);
 
-            this.context[objectName] = { ...this.provider.getObject(objectName) }
+            this.context[objectName] = { ...this.provider.getObject(objectName), pointers: {} }
             return {
+                _id: uuidv4(),
                 type: 'schema',
                 schema,
             }
@@ -41,10 +46,8 @@ class ExecutionContext {
         }
 
         const result = this.executeRPCProcedure(parsedRequest);
-        return {
-            type: 'property',
-            result,
-        }
+        this.context[objectName].pointers[result._id] = result;
+        return result;
     }
 
 
@@ -72,9 +75,11 @@ class ExecutionContext {
             return result;
         } catch (error) {
             return {
+                _id: uuidv4(),
                 type: 'error',
                 error: true,
                 message: 'Error handling Request',
+                // message: error.message,
             }
         }
 
@@ -82,26 +87,84 @@ class ExecutionContext {
 }
 
 
-const requestHandlers: { [type: string]: (request: Request, obj: { data: Data, schema: Schema }) => Response } = {
+const requestHandlers: { [type: string]: (request: Request, obj: ContextObject) => Response } = {
     attribute: (request, contextObject) => {
         const { attribute } = request as AttributeRequest;
         const { data, schema } = contextObject;
         const responseType = schema.attributes[attribute].type;
         const responseHandler = responseHandlers[responseType] || responseHandlers.default;
 
-        const response = responseHandler(data[attribute]);
+        const result = { result: data[attribute] };
+        const response = responseHandler(result);
         return response;
+    },
+
+    method: (request, contextObject) => {
+        const { method, args } = request as MethodRequest;
+        const { data, schema } = contextObject;
+        const responseReturnValue = schema.methods[method].return_value;
+        const responseType = responseReturnValue.type;
+        const responseHandler = responseHandlers[responseType] || responseHandlers.default;
+        const methodResult = data[method](...args);
+        const result = {
+            result: methodResult,
+            ...(responseReturnValue.schema ? { schema: responseReturnValue.schema } : null),
+        }
+
+        const response = responseHandler(result);
+        return response;
+    },
+
+    pointer: (request, contextObject) => {
+        console.log('constextObject', contextObject, request);
+
+        const { pointer, args } = request as PointerRequest;
+        const { pointers } = contextObject;
+
+        const pointerValue = pointers[pointer].value;
+        const { schema, result: value } = pointerValue;
+
+        const responseType = schema.return_value.type;
+        const responseHandler = responseHandlers[responseType] || responseHandlers.default;
+        const result = value(...args);
+        const returnSchema = schema.return_value.schema;
+
+        return responseHandler({
+            result,
+            ...(returnSchema ? { schema: returnSchema } : null ),
+        })
+
     }
 }
 
 
 const responseHandlers: { [key: string]: (value: any) => Response } = {
-    default: function defaultResponse(value: any) {
+    default: function defaultResponse(value) {
         return {
             type: 'property',
-            result: value
+            value,
+            _id: uuidv4()
+        }
+    },
+
+    function: function functionResponse(value) {
+        return {
+            type: 'pointer',
+            value,
+            _id: uuidv4()
         }
     }
+}
+
+
+interface ContextObject {
+    data: Data
+    schema: Schema
+    pointers: Pointer
+}
+
+interface Pointer {
+    [key: string]: any
 }
 
 interface Data {
@@ -111,30 +174,38 @@ interface Data {
 interface Request {
     objectName: string
     init_fetch?: true
-    returnType: string
-    attribute?: string
 }
 
-interface AttributeRequest {
-    objectName: string
-    init_fetch?: true
-    returnType: string
+interface AttributeRequest extends Request {
     attribute: string
 }
 
-interface ErrorRPCResponse {
+interface MethodRequest extends Request {
+    method: string
+    args: any[]
+}
+
+interface PointerRequest extends Request {
+    pointer: string
+    args: any[]
+}
+
+interface BaseResponse {
+    type: string
+    _id: string
+}
+
+interface ErrorRPCResponse extends BaseResponse {
     type: 'error'
     error: true
     message: string
 }
 
-interface RPCResponse {
-    type: string
-    result: any
+interface RPCResponse extends BaseResponse {
+    value: any
 }
 
-interface SchemaResponse {
-    type: string
+interface SchemaResponse extends BaseResponse {
     schema: any
 }
 

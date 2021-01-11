@@ -19,14 +19,16 @@ client.on('connect', function handleConnection(connection: ws.connection) {
         console.log('rpc-protocol connection closed');
     });
 
-
     initializeConsumer()
 
-    async function initializeConsumer() {
+    async function initializeConsumer() { 
         if (connection.connected) {
             const consumer = new Consumer(connection);
-            const result = await consumer.getRemoteObject('taskObject');
-            console.log('Consumer Result: ', await (result as any).name);
+            const result: any = await consumer.getRemoteObject('taskObject');
+            // const operation = await result.operationFactory();
+            // console.log('the operation value', await operation());
+
+            console.log('the name value: ', await result.operation(3, 4));
         }
     }
 });

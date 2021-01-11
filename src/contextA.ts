@@ -31,7 +31,8 @@ const taskObjectSchema: Schema = {
         operationFactory: {
             params: {},
             return_value: {
-                type: {
+                type: 'function',
+                schema: {
                     params: {},
                     return_value: {
                         type: 'string'
@@ -60,7 +61,7 @@ export interface Methods {
                 type: string
             }
         }
-        return_value: { type: string } | Methods
+        return_value: { type: string, schema?: object }
     }
 }
 
