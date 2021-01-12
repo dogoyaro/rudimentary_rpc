@@ -1,4 +1,5 @@
 import ws, { connection } from 'websocket';
+import { v4 as uuidv4 } from 'uuid';
 
 class Consumer {
     _connection: ws.connection
@@ -11,9 +12,11 @@ class Consumer {
 
     async getRemoteObject(objectName: string) {
         const connection = this._connection
+        console.log('fetching the remote object');
         return new Promise(function (resolve, reject) {
             connection.sendUTF(JSON.stringify({
                 objectName,
+                _id: uuidv4(),
                 init_fetch: true
             }));
             connection.on('message', function handleInitialFetch(message: ws.IMessage) {
@@ -58,6 +61,7 @@ const propertyHandlers = {
     attribute: async function getAttribute(objectName: string, attribute: string, connection: ws.connection) {
         return new Promise((resolve, reject) => {
             const request = {
+                _id: uuidv4(),
                 objectName,
                 attribute,
                 type: 'attribute'
@@ -74,7 +78,9 @@ const propertyHandlers = {
     },
     method: async function getMethod(objectName: string, method: string, args: any[], connection: ws.connection) {
         return new Promise((resolve, reject) => {
+            const requestId = uuidv4();
             const request = {
+                _id: requestId,
                 objectName,
                 type: 'method',
                 method,

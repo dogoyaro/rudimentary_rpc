@@ -23,6 +23,7 @@ client.on('connect', function handleConnection(connection: ws.connection) {
 
     async function initializeConsumer() { 
         if (connection.connected) {
+            console.log('connection established');
             const consumer = new Consumer(connection);
             const result: any = await consumer.getRemoteObject('taskObject');
             // const operation = await result.operationFactory();
