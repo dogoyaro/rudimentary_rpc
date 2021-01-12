@@ -105,6 +105,15 @@ class Consumer {
         const connection = this._connection;
         connection.sendUTF(JSON.stringify(requestBody));
     }
+
+    // TODO: Generate object type for autocomplete
+    generateObjectType(schema: object) {
+        type ObjectSchemaTypes = {};
+
+        type MapSchema<T extends Record<string, keyof ObjectSchemaTypes>> = {
+            -readonly [K in keyof T]: ObjectSchemaTypes[T[K]]
+          }
+    }
 }
 
 

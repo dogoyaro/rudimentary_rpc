@@ -27,7 +27,7 @@ class ExecutionContext {
                 type: 'error',
                 error: true,
                 message: 'bad request',
-            }
+            };
         }
         const { objectName = '', _id } = parsedRequest as Request;
 
@@ -35,12 +35,12 @@ class ExecutionContext {
         if (parsedRequest.init_fetch) {
             const { schema } = this.provider.getObject(objectName);
 
-            this.context[objectName] = { ...this.provider.getObject(objectName), pointers: {} }
+            this.context[objectName] = { ...this.provider.getObject(objectName), pointers: {} };
             return {
                 _id,
                 type: 'schema',
                 schema,
-            }
+            };
 
         }
 
@@ -51,7 +51,7 @@ class ExecutionContext {
 
 
     /**
-     * ParseRequest
+     * ParseRequest - entry point for validating requests against schema
      * @param request 
      */
     parseRequest(request: string): object {
@@ -64,10 +64,10 @@ class ExecutionContext {
     }
 
     /**
-     * 
+     * Execute Request
      * @param request 
      */
-    executeRPCProcedure(request: any): Response {
+    executeRPCProcedure(request: Request): Response {
         const { type, objectName, _id } = request;
         try {
             const result: Response = requestHandlers[type](request, this.context[objectName]);
@@ -78,10 +78,8 @@ class ExecutionContext {
                 type: 'error',
                 error: true,
                 message: 'Error handling Request',
-                // message: error.message,
-            }
+            };
         }
-
     }
 }
 
@@ -180,6 +178,7 @@ interface Data {
 interface Request {
     objectName: string
     init_fetch?: true
+    type: string
     _id: string
 }
 
