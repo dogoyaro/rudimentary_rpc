@@ -4,97 +4,130 @@ import { v4 as uuidv4 } from 'uuid';
 class Consumer {
     _connection: ws.connection
     _remoteObjects: object
+    _messageHandlers: { [key: string]: (message: ws.IMessage) => void }
 
     constructor(connection: ws.connection) {
         this._connection = connection;
         this._remoteObjects = {};
+        this._messageHandlers = {};
+        this.initializeMessageListener();
     }
 
     async getRemoteObject(objectName: string) {
         const connection = this._connection
         console.log('fetching the remote object');
-        return new Promise(function (resolve, reject) {
-            connection.sendUTF(JSON.stringify({
-                objectName,
-                _id: uuidv4(),
-                init_fetch: true
-            }));
-            connection.on('message', function handleInitialFetch(message: ws.IMessage) {
-                const messageBody = JSON.parse(message.utf8Data as string);
-                if (messageBody.type == 'schema') {
-                    const obj = Consumer.getObjectAPI(message.utf8Data as string, connection);
-                    resolve(obj);
-                }
-            });
+        const requestId = uuidv4();
+        const schemaMessage = {
+            objectName,
+            _id: requestId,
+            init_fetch: true,
+        }
+        return new Promise((resolve, reject) => {
+            const handleInitialFetch = (message: ws.IMessage) => {
+                const obj = this.getObjectAPI(message.utf8Data as string, connection);
+                resolve(obj);
+            }
+            this.registerMessageHandler(requestId, handleInitialFetch);
+            this.sendMessage(schemaMessage);
         });
     }
 
-    static getObjectAPI(schemaResponse: string, connection: ws.connection) {
+    getObjectAPI(schemaResponse: string, connection: ws.connection) {
         console.log(JSON.parse(schemaResponse));
         const { schema } = JSON.parse(schemaResponse);
         const { service: objectName } = schema;
         const { attributes, methods } = schema;
 
         const objectAPI = {}
-        Object.keys(attributes).forEach(function addAttributeProperty(attribute: string) {
+        Object.keys(attributes).forEach((attribute: string) => {
             Object.defineProperty(objectAPI, attribute, {
-                get: async function () {
-                    return await propertyHandlers.attribute(objectName, attribute, connection);
+                get: async () => {
+                    const attributeMessage = propertyHandlers.attribute(objectName, attribute);
+
+                    return new Promise((resolve, reject) => {
+                        this.registerMessageHandler(attributeMessage._id, handleGetAttribute);
+                        this.sendMessage(attributeMessage);
+
+                        function handleGetAttribute(message: ws.IMessage) {
+                            const data = JSON.parse(message.utf8Data as string);
+                            const response = responseHandlers[data.type](data);
+                            resolve(response);
+                        }
+                    })
                 }
             })
         });
-        Object.keys(methods).forEach(function addMethodProperty(method: string) {
+
+        Object.keys(methods).forEach((method: string) => {
             Object.defineProperty(objectAPI, method, {
-                get: function () {
-                    return async (...args: any[]) => propertyHandlers.method(objectName, method, args, connection);
+                get: () => {
+                    return async (...args: any[]) => {
+                        const methodMessage = propertyHandlers.method(objectName, method, args);
+
+                        return new Promise((resolve, reject) => {
+                            this.registerMessageHandler(methodMessage._id, handleGetMethod);
+                            this.sendMessage(methodMessage);
+
+                            function handleGetMethod(message: ws.IMessage) {
+                                const data = JSON.parse(message.utf8Data as string);
+                                const response = responseHandlers[data.type](data, objectName, connection);
+                                resolve(response)
+                            }
+                        })
+                    }
                 }
             })
         });
+
         console.log('object kkeys', Object.keys(objectAPI));
 
         return objectAPI;
+    }
+
+    registerMessageHandler(requestId: string, messageHandler: (message: ws.IMessage) => void) {
+        this._messageHandlers[requestId] = messageHandler;
+    }
+
+    initializeMessageListener() {
+        const connection = this._connection;
+        const messageHandlers = this._messageHandlers;
+
+        connection.on('message', function handleGetAttribute(message: ws.IMessage) {
+            const { _id: requestId } = JSON.parse(message.utf8Data as string);
+            messageHandlers[requestId] && messageHandlers[requestId](message);
+        })
+    }
+
+    sendMessage(requestBody: object) {
+        const connection = this._connection
+        connection.sendUTF(JSON.stringify(requestBody));
     }
 }
 
 
 const propertyHandlers = {
-    attribute: async function getAttribute(objectName: string, attribute: string, connection: ws.connection) {
-        return new Promise((resolve, reject) => {
-            const request = {
-                _id: uuidv4(),
-                objectName,
-                attribute,
-                type: 'attribute'
-            };
+    attribute: function getAttribute(objectName: string, attribute: string) {
+        const requestId = uuidv4();
+        const request = {
+            _id: requestId,
+            objectName,
+            attribute,
+            type: 'attribute'
+        };
 
-            connection.sendUTF(JSON.stringify(request));
-            connection.on('message', function handleGetAttribute(message: ws.IMessage) {
-                console.log('Attribute fetched', message);
-                const data = JSON.parse(message.utf8Data as string);
-                const response = responseHandlers[data.type](data);
-                resolve(response);
-            })
-        });
+        return request;
     },
-    method: async function getMethod(objectName: string, method: string, args: any[], connection: ws.connection) {
-        return new Promise((resolve, reject) => {
-            const requestId = uuidv4();
-            const request = {
-                _id: requestId,
-                objectName,
-                type: 'method',
-                method,
-                args
-            };
+    method: function getMethod(objectName: string, method: string, args: any[]) {
+        const requestId = uuidv4();
+        const request = {
+            _id: requestId,
+            objectName,
+            type: 'method',
+            method,
+            args
+        };
 
-            connection.sendUTF(JSON.stringify(request));
-            connection.on('message', function handleGetAttribute(message: ws.IMessage) {
-                console.log('method call', message);
-                const data = JSON.parse(message.utf8Data as string);
-                const response = responseHandlers[data.type](data, objectName, connection);
-                resolve(response)
-            })
-        })
+        return request;
     }
 }
 
@@ -107,7 +140,9 @@ const responseHandlers: { [key: string]: any } = {
         return async function getPointerProperty(...args: any[]) {
             return new Promise((resolve, reject) => {
                 const pointer = response._id;
+                const requestId = uuidv4();
                 const request = {
+                    _id: requestId,
                     type: 'pointer',
                     pointer,
                     objectName,
@@ -117,12 +152,14 @@ const responseHandlers: { [key: string]: any } = {
                 connection.on('message', function handleGetPointerResponse(message: ws.IMessage) {
                     console.log('pointer method call', message);
                     const data = JSON.parse(message.utf8Data as string);
-                    const response = responseHandlers[data.type](data, objectName, connection);
-                    resolve(response)
+                    if (data._id == requestId) {
+                        const response = responseHandlers[data.type](data, objectName, connection);
+                        resolve(response)
+                    }
                 });
-        });
+            });
+        }
     }
-}
 }
 
 export default Consumer;

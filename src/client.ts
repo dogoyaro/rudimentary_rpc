@@ -26,10 +26,11 @@ client.on('connect', function handleConnection(connection: ws.connection) {
             console.log('connection established');
             const consumer = new Consumer(connection);
             const result: any = await consumer.getRemoteObject('taskObject');
-            // const operation = await result.operationFactory();
-            // console.log('the operation value', await operation());
+            const operation = await result.operationFactory();
+            console.log('the operation value', await operation());
 
-            console.log('the name value: ', await result.operation(3, 4));
+            console.log('the operation value: ', await result.operation(2, 3));
+            console.log('the name value: ', await result.name);
         }
     }
 });
