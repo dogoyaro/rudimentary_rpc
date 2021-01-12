@@ -15,16 +15,22 @@ class Consumer {
 
     async getRemoteObject(objectName: string) {
         const connection = this._connection
-        console.log('fetching the remote object');
-        const requestId = uuidv4();
+
+        const requestId = 'init';
         const schemaMessage = {
             objectName,
             _id: requestId,
             init_fetch: true,
         }
+
         return new Promise((resolve, reject) => {
             const handleInitialFetch = (message: ws.IMessage) => {
-                const obj = this.getObjectAPI(message.utf8Data as string, connection);
+                const response = JSON.parse(message.utf8Data as string);
+                if (response.type == 'error') {
+                    reject(response.message);
+                }
+                const obj: { [key: string]: any } = this.getObjectAPI(message.utf8Data as string, connection);
+
                 resolve(obj);
             }
             this.registerMessageHandler(requestId, handleInitialFetch);
@@ -33,7 +39,6 @@ class Consumer {
     }
 
     getObjectAPI(schemaResponse: string, connection: ws.connection) {
-        console.log(JSON.parse(schemaResponse));
         const { schema } = JSON.parse(schemaResponse);
         const { service: objectName } = schema;
         const { attributes, methods } = schema;
@@ -44,7 +49,7 @@ class Consumer {
                 get: async () => {
                     const attributeMessage = propertyHandlers.attribute(objectName, attribute);
 
-                    return new Promise((resolve, reject) => {
+                    return new Promise((resolve) => {
                         this.registerMessageHandler(attributeMessage._id, handleGetAttribute);
                         this.sendMessage(attributeMessage);
 
@@ -64,7 +69,7 @@ class Consumer {
                     return async (...args: any[]) => {
                         const methodMessage = propertyHandlers.method(objectName, method, args);
 
-                        return new Promise((resolve, reject) => {
+                        return new Promise((resolve) => {
                             this.registerMessageHandler(methodMessage._id, handleGetMethod);
                             this.sendMessage(methodMessage);
 
@@ -78,8 +83,6 @@ class Consumer {
                 }
             })
         });
-
-        console.log('object kkeys', Object.keys(objectAPI));
 
         return objectAPI;
     }
@@ -95,11 +98,11 @@ class Consumer {
         connection.on('message', function handleGetAttribute(message: ws.IMessage) {
             const { _id: requestId } = JSON.parse(message.utf8Data as string);
             messageHandlers[requestId] && messageHandlers[requestId](message);
-        })
+        });
     }
 
     sendMessage(requestBody: object) {
-        const connection = this._connection
+        const connection = this._connection;
         connection.sendUTF(JSON.stringify(requestBody));
     }
 }
@@ -133,12 +136,12 @@ const propertyHandlers = {
 
 const responseHandlers: { [key: string]: any } = {
     property: (response: any) => {
-        return response.value.result
+        return response.value.result;
     },
 
     pointer: (response: any, objectName: string, connection: ws.connection) => {
         return async function getPointerProperty(...args: any[]) {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 const pointer = response._id;
                 const requestId = uuidv4();
                 const request = {
@@ -150,7 +153,6 @@ const responseHandlers: { [key: string]: any } = {
                 }
                 connection.sendUTF(JSON.stringify(request));
                 connection.on('message', function handleGetPointerResponse(message: ws.IMessage) {
-                    console.log('pointer method call', message);
                     const data = JSON.parse(message.utf8Data as string);
                     if (data._id == requestId) {
                         const response = responseHandlers[data.type](data, objectName, connection);
@@ -159,6 +161,14 @@ const responseHandlers: { [key: string]: any } = {
                 });
             });
         }
+    },
+
+    error: (response: any) => {
+        return response.message;
+    },
+
+    bigint: (response: any) => {
+        return BigInt(response.value.result);
     }
 }
 

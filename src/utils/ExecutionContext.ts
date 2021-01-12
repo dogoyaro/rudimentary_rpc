@@ -1,5 +1,5 @@
 import Provider from './Provider';
-import { Schema, Attribute } from '../contextA';
+import { Schema, Attribute } from '../contexts/contextA';
 import { v4 as uuidv4 } from 'uuid';
 
 class ExecutionContext {
@@ -14,8 +14,8 @@ class ExecutionContext {
     }
 
     /**
-     * 
-     * @param request 
+     * Handles request execution
+     * @param request
      */
     handleRequest(request: string): Response {
         let parsedRequest: Request;
@@ -23,7 +23,7 @@ class ExecutionContext {
             parsedRequest = this.parseRequest(request) as Request;
         } catch (error) {
             return {
-                _id: uuidv4(),
+                _id: 'init',
                 type: 'error',
                 error: true,
                 message: 'bad request',
@@ -115,8 +115,6 @@ const requestHandlers: { [type: string]: (request: Request, obj: ContextObject) 
     },
 
     pointer: (request, contextObject) => {
-        console.log('constextObject', contextObject, request);
-
         const { pointer, args, _id } = request as PointerRequest;
         const { pointers } = contextObject;
 
@@ -152,9 +150,18 @@ const responseHandlers: { [key: string]: (value: any, id: string) => Response } 
             _id: id,
             value,
         }
+    },
+
+    bigint: function bigIntResponse(value, id) {
+        return {
+            type: 'bigint',
+            _id: id,
+            value: { ...value, result: value.result.toString() }
+        }
     }
 }
 
+export default ExecutionContext;
 
 interface ContextObject {
     data: Data
@@ -210,5 +217,3 @@ interface SchemaResponse extends BaseResponse {
 }
 
 type Response = ErrorRPCResponse | RPCResponse | SchemaResponse
-
-export default ExecutionContext;

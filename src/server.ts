@@ -2,7 +2,7 @@ import http from 'http';
 import ws from 'websocket';
 import ExecutionContext from './utils/ExecutionContext';
 import Provider from './utils/Provider';
-import { getObjectProvider } from './contextA';
+import { getObjectProvider } from './contexts/contextA';
 
 const WebSocketServer = ws.server;
 

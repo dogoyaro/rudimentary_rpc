@@ -1,15 +1,22 @@
-import Provider from './utils/Provider';
+import Provider from '../utils/Provider';
 
-const taskObject: { name: string, operation: (a: number, b: number) => number, operationFactory: () => any } = {
+const taskObject: ContextObject= {
     name: 'file expense reports',
     operation: function addOperation(a, b) {
         return a + b;
+    },
+    age: 3,
+    projects: {
+        manhattanProject: {
+            description: 'deliver a slew of cookies to manhattan?'
+        }
     },
     operationFactory: function generateOperation() {
         return function generatedOperation() {
             return 'stuff';
         }
-    }
+    },
+    bigNumber: BigInt(2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222),
 };
 
 const taskObjectSchema: Schema = {
@@ -44,6 +51,15 @@ const taskObjectSchema: Schema = {
     attributes: {
         name: {
             type: 'string',
+        },
+        age: {
+            type: 'number'
+        },
+        projects: {
+            type: 'object'
+        },
+        bigNumber: {
+            type: 'bigint'
         }
     }
 };
@@ -68,6 +84,7 @@ export interface Methods {
 export interface Attribute {
     [key: string]: {
         type: string
+        schema?: object
     }
 }
 
@@ -77,3 +94,12 @@ export function getObjectProvider() {
 
     return objectProvider;
 }
+
+interface ContextObject { 
+    name: string
+    bigNumber: BigInt
+    operation: (a: number, b: number) => number
+    operationFactory: () => any
+    age: number
+    projects: object
+} 

@@ -1,4 +1,4 @@
-import { Schema } from '../contextA';
+import { Schema } from '../contexts/contextA';
 
 
 class Provider {
